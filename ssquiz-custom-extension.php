@@ -17,8 +17,8 @@
      if($a['id'] == 0)
         return;
     else {
-        $name = $wpdb->get_var("SELECT name FROM {$wpdb->base_prefix}ssquiz_quizzes WHERE id=".$a['id']);
-        echo '<p class="quizName">'.$name.'</p>';
+        $row = $wpdb->get_row("SELECT post_title,guid FROM {$wpdb->posts} WHERE post_status='publish' AND post_type='page' AND post_title IN (SELECT name FROM {$wpdb->base_prefix}ssquiz_quizzes WHERE id=".$a['id'].")");
+        echo '<p class="quizName"><a href="'.$row->guid.'">'.$row->post_title.'</a></p>';
     }
  }
  add_shortcode('ssquizExtension','displayName');
