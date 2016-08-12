@@ -33,18 +33,19 @@
         $pass_percent = 85; 
         if (null != $quiz_status && $quiz_status->question_offset >= $quiz_status->total && $quiz_status->questions_right/$quiz_status->total >= $pass_percent) {
             /*passed*/
-            echo '<p class="quizName passed"><a href="'.$row->guid.'">'.$row->post_title.'</a></p>';
+            $result = '<p class="quizName passed"><a href="'.$row->guid.'">'.$row->post_title.'</a></p>';
         } elseif(null != $quiz_status && $quiz_status->question_offset >= $quiz_status->total && $quiz_status->questions_right/$quiz_status->total < $pass_percent){
             /*failed */
-            echo '<p class="quizName failed"><a href="'.$row->guid.'">'.$row->post_title.'</a></p>';
+            $result = '<p class="quizName failed"><a href="'.$row->guid.'">'.$row->post_title.'</a></p>';
         }elseif((null != $quiz_status && $quiz_status->question_offset < $quiz_status->total) || (null == $quiz_status && null != $prereq_status && $prereq_status->question_offset >= $prereq_status->total && $prereq_status->questions_right/$prereq_status->total >= $pass_percent) || (null == $quiz_status && $quiz_meta->prerequisites <= 0)){
-            echo '<p class="quizName active"><a href="'.$row->guid.'">'.$row->post_title.'</a></p>';
+            $result = '<p class="quizName active"><a href="'.$row->guid.'">'.$row->post_title.'</a></p>';
             /*passed prereq && not finished*/
         }else{
             // not concerned (gray and un-clickable) = do prereq first
-            echo '<p class="quizName inactive">'.$row->post_title.'</p>';
+            $result = '<p class="quizName inactive">'.$row->post_title.'</p>';
         }
     }
+    return $result;
  }
  add_shortcode('ssquizExtension','displayName');
  ?>
