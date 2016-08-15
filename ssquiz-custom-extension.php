@@ -92,14 +92,14 @@ $ssquizExtensionVersion = '1.0.0';
 		foreach($curricula as $curriculum){
 			$link = $wpdb->get_var("SELECT guid FROM {$wpdb->base_prefix}posts WHERE post_title='{$curriculum->name}' AND post_status='publish' AND post_type='page'");
 			if(!empty($activeCurriculum) && strcasecmp($activeCurriculum, $curriculum->name)==0)
-                $result = '<span class="selfCurriculum active"><a data-link="'.$link.'">'.$curriculum->name.'</a></span>';
+                $result .= '<p class="selfCurriculum active"><a data-link="'.$link.'">'.$curriculum->name.'</a></p>';
             elseif (!empty($activeCurriculum)) {
-                $result = '<span class="selfCurriculum inactive">'.$curriculum->name.'</span>';
+                $result .= '<p class="selfCurriculum inactive">'.$curriculum->name.'</p>';
             } else{
                 if(in_array($curriculum->name, $finishedArray))
-                    $result = '<span class="selfCurriculum passed"><a href="#">'.$curriculum->name.'</a></span>';
+                    $result .= '<p class="selfCurriculum passed"><a href="#">'.$curriculum->name.'</a></p>';
                 else
-                    $result = '<span class="selfCurriculum active"><a data-link="'.$link.'">'.$curriculum->name.'</a></span>';
+                    $result .= '<p class="selfCurriculum active"><a data-link="'.$link.'">'.$curriculum->name.'</a></p>';
             }
 		}
 	}
