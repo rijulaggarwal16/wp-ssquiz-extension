@@ -81,12 +81,12 @@ $ssquizExtensionVersion = '1.0.0';
             if(!empty($diff1)){
                 // delete
                 foreach($diff1 as $cn)
-                    $wpdb->delete('{$wpdb->base_prefix}self_ssquiz_extension_curriculum',array('user_id' => $user_id, 'curriculum_name' => $cn),array('%d','%s'));
+                    $wpdb->delete($wpdb->base_prefix.'self_ssquiz_extension_curriculum',array('user_id' => $user_id, 'curriculum_name' => $cn),array('%d','%s'));
             }
             if(!empty($diff2)){
                 // insert
                 foreach($diff2 as $cn)
-                    $wpdb->insert('{$wpdb->base_prefix}self_ssquiz_extension_curriculum',array('user_id' => $user_id, 'curriculum_name' => $cn, 'status' => 'n'),array('%d','%s','%s'));
+                    $wpdb->insert($wpdb->base_prefix.'self_ssquiz_extension_curriculum',array('user_id' => $user_id, 'curriculum_name' => $cn, 'status' => 'n'),array('%d','%s','%s'));
             }
         }
 		foreach($curricula as $curriculum){
@@ -110,9 +110,9 @@ add_shortcode('ssquizExtensionCurriculums','diaplayCurriculums');
 
 function addCurriculumBody(&$body){
     $body .= '<script>
-$(".active a").click(function(){
+jQuery(".active a").click(function($){
     if(confirm("Are you sure you want to opt for this curriculum? You cannot change the curriculum before it is complete.")){
-        $(this).attr("href", $(this).data("link"));
+        jQuery(this).attr("href", jQuery(this).data("link"));
     }
     else{
         return false;
