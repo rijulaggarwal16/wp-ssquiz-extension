@@ -15,6 +15,8 @@ $ssquizExtensionVersion = '1.0.0';
  function displayName($atts){
      global $wpdb;
      $user_id = get_current_user_id();
+     if(false === checkValidAccess($user_id, get_the_title()))
+        return;
      $a = shortcode_atts(array(
          'id' => 0
      ),$atts);
@@ -51,6 +53,31 @@ $ssquizExtensionVersion = '1.0.0';
     return $result;
  }
  add_shortcode('ssquizExtension','displayName');
+
+ function checkValidAccess($user_id, $curriculum_name){
+     global $wpdb;
+     $activeName = $wpdb->get_var("SELECT curriculum_name FROM {$wpdb->base_prefix}self_ssquiz_extension_curriculum WHERE user_id=".$user_id." AND status='y'");
+     if(!empty($activeName) && strcasecmp($activeName, $curriculum_name) == 0){
+         return true;
+     }
+     return false;
+ }
+
+ function displayQuizAccessError($atts, $content = null){
+     if(false === checkValidAccess(get_current_user_id(), get_the_title())){
+        return '<span class="selfAccessError">'.do_shortcode($content).'</span>';
+     }
+     return;
+ }
+ add_shortcode('ssquizExtensionAccessError','displayQuizAccessError');
+
+function displayQuizAccessGranted($atts, $content = null){
+     if(true === checkValidAccess(get_current_user_id(), get_the_title())){
+        return '<span class="selfAccessGranted">'.do_shortcode($content).'</span>';
+     }
+     return;
+ }
+ add_shortcode('ssquizExtensionAccessOk','displayQuizAccessGranted');
 
  function diaplayCurriculums($atts){
     global $wpdb;
