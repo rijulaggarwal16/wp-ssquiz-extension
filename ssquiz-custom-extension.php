@@ -80,8 +80,11 @@ $ssquizExtensionVersion = '1.0.0';
         if(!empty($diff1) || !empty($diff2)){
             if(!empty($diff1)){
                 // delete
-                foreach($diff1 as $cn)
+                foreach($diff1 as $cn){
                     $wpdb->delete($wpdb->base_prefix.'self_ssquiz_extension_curriculum',array('user_id' => $user_id, 'curriculum_name' => $cn),array('%d','%s'));
+                    if(strcasecmp($activeCurriculum, $cn)==0)
+                        $activeCurriculum = '';
+                }
             }
             if(!empty($diff2)){
                 // insert
@@ -92,14 +95,17 @@ $ssquizExtensionVersion = '1.0.0';
 		foreach($curricula as $curriculum){
 			$link = $wpdb->get_var("SELECT guid FROM {$wpdb->base_prefix}posts WHERE post_title='{$curriculum->name}' AND post_status='publish' AND post_type='page'");
 			if(!empty($activeCurriculum) && strcasecmp($activeCurriculum, $curriculum->name)==0)
-                $result .= '<p class="selfCurriculum active"><a data-link="'.$link.'">'.$curriculum->name.'</a></p>';
+                $result .= '<p class="selfCurriculum active"><a data-active="y" data-link="'.$link.'">'.$curriculum->name.'</a></p>';
+            elseif (!empty($activeCurriculum) && in_array($curriculum->name, $finishedArray)) {
+                $result .= '<p class="selfCurriculum passed"><a href="javascript:void(0);">'.$curriculum->name.'</a></p>';
+            }
             elseif (!empty($activeCurriculum)) {
                 $result .= '<p class="selfCurriculum inactive">'.$curriculum->name.'</p>';
             } else{
                 if(in_array($curriculum->name, $finishedArray))
-                    $result .= '<p class="selfCurriculum passed"><a href="#">'.$curriculum->name.'</a></p>';
+                    $result .= '<p class="selfCurriculum passed"><a href="javascript:void(0);">'.$curriculum->name.'</a></p>';
                 else
-                    $result .= '<p class="selfCurriculum active"><a data-link="'.$link.'">'.$curriculum->name.'</a></p>';
+                    $result .= '<p class="selfCurriculum active"><a data-active="n" data-link="'.$link.'">'.$curriculum->name.'</a></p>';
             }
 		}
 	}
@@ -108,18 +114,48 @@ $ssquizExtensionVersion = '1.0.0';
  }
 add_shortcode('ssquizExtensionCurriculums','diaplayCurriculums');
 
+function ajaxOptCurriculum(){
+    global $wpdb;
+    $user_id = get_current_user_id();
+    $cName = $_REQUEST['name'];
+    $activeCount = $wpdb->get_var("SELECT count(*) FROM {$wpdb->base_prefix}self_ssquiz_extension_curriculum WHERE user_id=".$user_id." AND status='y'");
+    if($activeCount <= 0){
+        $wpdb->update($wpdb->base_prefix."self_ssquiz_extension_curriculum", array('status' => 'y'), array('user_id' => $user_id, 'curriculum_name' => $cName), array('%s'), array("%d","%s"));
+    }
+}
+add_action('wp_ajax_ajaxOptCurriculum', 'ajaxOptCurriculum');
+
 function addCurriculumBody(&$body){
     $body .= '<script>
-jQuery(".active a").click(function($){
-    if(confirm("Are you sure you want to opt for this curriculum? You cannot change the curriculum before it is complete.")){
-        jQuery(this).attr("href", jQuery(this).data("link"));
-    }
-    else{
-        return false;
-    }
-});
-</script>';
+    jQuery(".active a").click(function($){
+        var c = jQuery(this);
+        if(jQuery(this).data("active") == "y"){
+             location.href = c.data("link");
+        }
+        else if(confirm("Are you sure you want to opt for this curriculum? You cannot change the curriculum before it is complete.")){
+            jQuery.post(ssquizExtension.ajaxurl, {
+                action: "ajaxOptCurriculum",
+                name: c.html()
+            }).done(function(data){
+                location.href = c.data("link");
+            }).fail(function(){
+                alert("Could not opt for this curriculum. Please contact the administrator.");
+            });
+        }
+        else{
+            return false;
+        }
+    });
+    </script>';
 }
+
+function enqueueExtensionScripts(){
+    wp_enqueue_script('jquery');
+    wp_localize_script( 'jquery', 'ssquizExtension', array(
+		'ajaxurl' => admin_url( 'admin-ajax.php' )
+	));
+}
+add_action( 'wp_enqueue_scripts', 'enqueueExtensionScripts' );
 
 function extensionInstall(){
     global $ssquizExtensionVersion;
