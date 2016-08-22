@@ -141,6 +141,36 @@ function displayQuizAccessGranted($atts, $content = null){
  }
 add_shortcode('ssquizExtensionCurriculums','diaplayCurriculums');
 
+function displayGradeTable($atts){
+    global $wpdb;
+    $user_id = get_current_user_id();
+    $pass_percent = 85;
+    $gradea_cutoff = 90;
+    $result = '<table id="gradeTable">';
+    $result .= '<tr><th>Course Name</th><th>Marks Obtained</th><th>Letter Grade</th></tr>';
+    $quizzes = $wpdb->get_results("select name,total,correct from {$wpdb->base_prefix}ssquiz_quizzes as q join (SELECT h1.quiz_id,total,correct,h2.ts FROM {$wpdb->base_prefix}ssquiz_history as h1 inner JOIN (select quiz_id,user_id,max(timestamp) as ts from {$wpdb->base_prefix}ssquiz_history where user_id=".$user_id." group by quiz_id)as h2 ON h2.quiz_id = h1.quiz_id and h1.user_id = h2.user_id and h1.timestamp=h2.ts) as h on q.id=h.quiz_id order by h.ts desc");
+    $i = 0;
+    foreach($quizzes as $quiz){
+        if($i%2 == 0)
+            $result .= "<tr class='even'>";
+        else
+            $result .= "<tr class='odd'>";
+
+        $grade = 'F';
+        $marks = $quiz->correct/$quiz->total*100;
+        $marks = round($marks,1);
+        if($marks >= $gradea_cutoff)
+            $grade = 'A';
+        elseif($marks >= $pass_percent)
+            $grade = 'B';
+        $result .= "<td>".$quiz->name."</td><td>".$marks."</td><td>".$grade."</td>";
+        $result .= "</tr>";
+    }
+    $result .= '</table>';
+    return $result;
+}
+add_shortcode('ssquizExtensionGradeTable','displayGradeTable');
+
 function ajaxOptCurriculum(){
     global $wpdb;
     $user_id = get_current_user_id();
