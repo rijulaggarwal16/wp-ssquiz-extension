@@ -1,0 +1,53 @@
+.passed a{
+    color:green;
+}
+.failed a{
+    color:red;
+}
+.active a{
+    color:blue;
+}
+.inactive{
+    color:gray;
+}
+a{
+    cursor:pointer;
+}
+table#gradeTable{
+    border-collapse: collapse;
+    border-spacing: 0;
+    border: 1px solid #ddd;
+    margin: 1em 0;
+    text-align: left;
+    width: 100%;
+}
+#gradeTable tr th, #gradeTable thead th{
+    background: #c5c5c5;
+    font-weight: bold;
+    padding: 0.2em 1em;
+    text-align: center;
+}
+#gradeTable tr{
+    margin: 0;
+    padding: 0;
+    border: 0;
+    font-size: 100%;
+    font: inherit;
+    vertical-align: baseline;
+}
+#gradeTable tr td{
+    border-top: 1px solid #ddd;
+    padding: 0.2em 1em;
+}
+#gradeTable td{
+    margin: 0;
+    padding: 0;
+    border: 0;
+    font-size: 100%;
+    font: inherit;
+    vertical-align: baseline;
+    text-align: center;
+}
+#gradeTable .odd{
+    background-color: #eee;
+}

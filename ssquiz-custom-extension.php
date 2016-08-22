@@ -9,6 +9,8 @@
  * License: GPL2
  */
 
+define( 'SSQUIZ_EXTENSION_URL', plugin_dir_url( __FILE__ ) . '/' );
+
 global $ssquizExtensionVersion;
 $ssquizExtensionVersion = '1.0.0';
 
@@ -165,6 +167,7 @@ function displayGradeTable($atts){
             $grade = 'B';
         $result .= "<td>".$quiz->name."</td><td>".$marks."</td><td>".$grade."</td>";
         $result .= "</tr>";
+        $i++;
     }
     $result .= '</table>';
     return $result;
@@ -211,6 +214,8 @@ function enqueueExtensionScripts(){
     wp_localize_script( 'jquery', 'ssquizExtension', array(
 		'ajaxurl' => admin_url( 'admin-ajax.php' )
 	));
+
+    wp_enqueue_style( 'default_style', SSQUIZ_EXTENSION_URL.'css/default-style.css' );
 }
 add_action( 'wp_enqueue_scripts', 'enqueueExtensionScripts' );
 
