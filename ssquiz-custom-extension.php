@@ -239,6 +239,7 @@ function extensionInstall(){
 }
 
 function extensionUninstall(){
+    global $wpdb;
     delete_option('ssquizExtensionVersion');
     $wpdb->query("
 		DROP TABLE IF EXISTS {$wpdb->base_prefix}self_ssquiz_extension_curriculum;
