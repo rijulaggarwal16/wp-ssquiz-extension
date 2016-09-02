@@ -17,6 +17,7 @@ $ssquizExtensionVersion = '1.0.0';
  function displayName($atts){
      global $wpdb;
      $user_id = get_current_user_id();
+     $result = "";
      if(false === checkValidAccess($user_id, get_the_title()))
         return;
      $a = shortcode_atts(array(
@@ -26,7 +27,19 @@ $ssquizExtensionVersion = '1.0.0';
     if($a['id'] == 0)
         return;
     else {
-        $row = $wpdb->get_row("SELECT post_title,guid FROM {$wpdb->posts} WHERE post_status='publish' AND post_type='page' AND post_title IN (SELECT name FROM {$wpdb->base_prefix}ssquiz_quizzes WHERE id=".$quiz_id.")");
+        $defultNameSearch = "SELECT name FROM {$wpdb->base_prefix}ssquiz_quizzes WHERE id=".$quiz_id;
+        $result .= printQuizName($user_id, $quiz_id, $defultNameSearch, true);
+    }
+    return $result;
+ }
+ add_shortcode('ssquizExtension','displayName');
+
+ function printQuizName($user_id, $quiz_id, $name, $subQuery = false){
+    global $wpdb;
+    if($subQuery)
+        $row = $wpdb->get_row("SELECT post_title,guid FROM {$wpdb->posts} WHERE post_status='publish' AND post_type='page' AND post_title IN (".$name.")");
+    else
+        $row = $wpdb->get_row("SELECT post_title,guid FROM {$wpdb->posts} WHERE post_status='publish' AND post_type='page' AND post_title='".$name."'");
         if(null == $row)
             return;
         $quiz_status = $wpdb->get_row("SELECT questions_right,total,question_offset FROM {$wpdb->base_prefix}self_ssquiz_response_history AS s JOIN {$wpdb->base_prefix}ssquiz_history AS h ON s.quiz_id=h.quiz_id WHERE s.user_id=".$user_id." AND s.quiz_id=".$quiz_id." order by timestamp desc limit 1");
@@ -51,10 +64,8 @@ $ssquizExtensionVersion = '1.0.0';
             // not concerned (gray and un-clickable) = do prereq first
             $result = '<span class="quizName inactive">'.$row->post_title.'</span>';
         }
-    }
     return $result;
  }
- add_shortcode('ssquizExtension','displayName');
 
  function checkValidAccess($user_id, $curriculum_name){
      global $wpdb;
@@ -83,11 +94,13 @@ function displayQuizAccessGranted($atts, $content = null){
 
  function diaplayCurriculums($atts){
     global $wpdb;
+    $curriculaResult = '<h2>Curriculums</h2>';
+    $quizResult = '<h2>Individual Courses</h2>';
     $result = '';
 	$user_id = get_current_user_id();
     $curricula = $wpdb->get_results("SELECT name from {$wpdb->base_prefix}groups_group natural join {$wpdb->base_prefix}groups_user_group where group_id != 1 and user_id=".$user_id);
 	if(null == $curricula || count($curricula) <= 0){
-		$result = "<h2>Sorry! You are not enrolled in any curriculum yet.</h2>";
+		$result = "<h2>Sorry! You are not enrolled in any curriculum/course yet.</h2>";
 	}else{
         $curriculaStatus = $wpdb->get_results("SELECT * FROM {$wpdb->base_prefix}self_ssquiz_extension_curriculum WHERE user_id=".$user_id);
         $storedArray = array();
@@ -102,7 +115,8 @@ function displayQuizAccessGranted($atts, $content = null){
         }
         $curriculaNames = array();
         foreach($curricula as $curriculum){
-            $curriculaNames[] = $curriculum->name;
+            if(isCurriculum($curriculum->name))
+                $curriculaNames[] = $curriculum->name;
         }
         $diff1 = array_diff($storedArray, $curriculaNames);
         $diff2 = array_diff($curriculaNames, $storedArray);
@@ -122,26 +136,37 @@ function displayQuizAccessGranted($atts, $content = null){
             }
         }
 		foreach($curricula as $curriculum){
-			$link = $wpdb->get_var("SELECT guid FROM {$wpdb->base_prefix}posts WHERE post_title='{$curriculum->name}' AND post_status='publish' AND post_type='page'");
-			if(!empty($activeCurriculum) && strcasecmp($activeCurriculum, $curriculum->name)==0)
-                $result .= '<p class="selfCurriculum active"><a data-active="y" data-link="'.$link.'">'.$curriculum->name.'</a></p>';
-            elseif (!empty($activeCurriculum) && in_array($curriculum->name, $finishedArray)) {
-                $result .= '<p class="selfCurriculum passed"><a href="javascript:void(0);">'.$curriculum->name.'</a></p>';
-            }
-            elseif (!empty($activeCurriculum)) {
-                $result .= '<p class="selfCurriculum inactive">'.$curriculum->name.'</p>';
+            if(isCurriculum($curriculum->name)){
+                $link = $wpdb->get_var("SELECT guid FROM {$wpdb->base_prefix}posts WHERE post_title='{$curriculum->name}' AND post_status='publish' AND post_type='page'");
+                if(!empty($activeCurriculum) && strcasecmp($activeCurriculum, $curriculum->name)==0)
+                    $curriculaResult .= '<p class="selfCurriculum active"><a data-active="y" data-link="'.$link.'">'.$curriculum->name.'</a></p>';
+                elseif (!empty($activeCurriculum) && in_array($curriculum->name, $finishedArray)) {
+                    $curriculaResult .= '<p class="selfCurriculum passed"><a href="javascript:void(0);">'.$curriculum->name.'</a></p>';
+                }
+                elseif (!empty($activeCurriculum)) {
+                    $curriculaResult .= '<p class="selfCurriculum inactive">'.$curriculum->name.'</p>';
+                } else{
+                    if(in_array($curriculum->name, $finishedArray))
+                        $curriculaResult .= '<p class="selfCurriculum passed"><a href="javascript:void(0);">'.$curriculum->name.'</a></p>';
+                    else
+                        $curriculaResult .= '<p class="selfCurriculum active"><a data-active="n" data-link="'.$link.'">'.$curriculum->name.'</a></p>';
+                }
             } else{
-                if(in_array($curriculum->name, $finishedArray))
-                    $result .= '<p class="selfCurriculum passed"><a href="javascript:void(0);">'.$curriculum->name.'</a></p>';
-                else
-                    $result .= '<p class="selfCurriculum active"><a data-active="n" data-link="'.$link.'">'.$curriculum->name.'</a></p>';
+                $quiz_id = $wpdb->get_var("SELECT id FROM {$wpdb->base_prefix}ssquiz_quizzes WHERE name='{$curriculum->name}'");
+                $quizResult .= printQuizName($user_id, $quiz_id, $curriculum->name);
             }
 		}
 	}
+    $result .= $quizResult.$curriculaResult;
     addCurriculumBody($result);
     return $result;
  }
 add_shortcode('ssquizExtensionCurriculums','diaplayCurriculums');
+
+function isCurriculum($name){
+    preg_match('#\((.*?)\)#', $name, $match);
+    return (count($match) > 1 && !empty($match[1]));
+}
 
 function displayGradeTable($atts){
     global $wpdb;
@@ -187,7 +212,7 @@ add_action('wp_ajax_ajaxOptCurriculum', 'ajaxOptCurriculum');
 
 function addCurriculumBody(&$body){
     $body .= '<script>
-    jQuery(".active a").click(function($){
+    jQuery(".selfCurriculum.active a").click(function($){
         var c = jQuery(this);
         if(jQuery(this).data("active") == "y"){
              location.href = c.data("link");
