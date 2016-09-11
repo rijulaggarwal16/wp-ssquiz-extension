@@ -175,9 +175,11 @@ function displayGradeTable($atts){
     $gradea_cutoff = 90;
     $result = '<table id="gradeTable">';
     $result .= '<tr><th>Course Name</th><th>Marks Obtained</th><th>Letter Grade</th></tr>';
-    $quizzes = $wpdb->get_results("select name,total,correct from {$wpdb->base_prefix}ssquiz_quizzes as q join (SELECT h1.quiz_id,total,correct,h2.ts FROM {$wpdb->base_prefix}ssquiz_history as h1 inner JOIN (select quiz_id,user_id,max(timestamp) as ts from {$wpdb->base_prefix}ssquiz_history where user_id=".$user_id." group by quiz_id)as h2 ON h2.quiz_id = h1.quiz_id and h1.user_id = h2.user_id and h1.timestamp=h2.ts) as h on q.id=h.quiz_id order by h.ts desc");
+    $quizzes = $wpdb->get_results("select name,meta,total,correct from {$wpdb->base_prefix}ssquiz_quizzes as q join (SELECT h1.quiz_id,total,correct,h2.ts FROM {$wpdb->base_prefix}ssquiz_history as h1 inner JOIN (select quiz_id,user_id,max(timestamp) as ts from {$wpdb->base_prefix}ssquiz_history where user_id=".$user_id." group by quiz_id)as h2 ON h2.quiz_id = h1.quiz_id and h1.user_id = h2.user_id and h1.timestamp=h2.ts) as h on q.id=h.quiz_id order by h.ts desc");
     $i = 0;
+    $tpc = 0;   // Total passed credits
     foreach($quizzes as $quiz){
+        $quiz_meta = unserialize($quiz->meta);
         if($i%2 == 0)
             $result .= "<tr class='even'>";
         else
@@ -186,15 +188,18 @@ function displayGradeTable($atts){
         $grade = 'F';
         $marks = $quiz->correct/$quiz->total*100;
         $marks = round($marks,1);
-        if($marks >= $gradea_cutoff)
-            $grade = 'A';
-        elseif($marks >= $pass_percent)
+        if($marks >= $pass_percent){
+            $tpc += intval($quiz_meta->quiz_credits);
             $grade = 'B';
+        }
+        if($marks >= $gradea_cutoff)
+            $grade = 'A';            
         $result .= "<td>".$quiz->name."</td><td>".$marks."</td><td>".$grade."</td>";
         $result .= "</tr>";
         $i++;
     }
     $result .= '</table>';
+    $result .= '<p class="passedCredits">Total passed credits: '.$tpc.'</p>';
     return $result;
 }
 add_shortcode('ssquizExtensionGradeTable','displayGradeTable');
