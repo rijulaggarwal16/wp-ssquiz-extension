@@ -169,11 +169,141 @@ function isCurriculum($name){
 }
 
 function displayGradeTable($atts){
+    return printableGradeTable(get_current_user_id());
+}
+add_shortcode('ssquizExtensionGradeTable','displayGradeTable');
+
+function displayEditableGradeTable($atts){
+    $result = '<form action="'. htmlspecialchars($_SERVER["PHP_SELF"]) .'" method="POST"><label>Username</label><input name="username" id="username" type="text" /><input type="submit" name="submit" /></form>';
+    if(!$_REQUEST['username']){
+        return $result;
+    }else{
+        $user = get_user_by('login', $_REQUEST['username']);
+        if(!$user)
+            return $result;
+        else{
+            $user_id = $user->ID;
+        }
+    }
+    $result .= '<button id="addRow">Add Row</button>';
+    $result .= printableGradeTable($user_id, true);
+    $result .= '<button id="saveChanges" data-user-id="'.$user_id.'">Save Changes</button><p><span style="color:red">Notice:</span> Please review the changes before saving them, as it will affect the students grade table and course enrollment.</p>';
+    addEditableGradeTableJS($result);
+    return $result;
+}
+add_shortcode('ssquizExtensionEditableGradeTable','displayEditableGradeTable');
+
+function addEditableGradeTableJS(&$body){
+    $body .= '<script>
+        jQuery("[contenteditable=true]")
+            .focus(function() {
+                jQuery(this).data("initial", jQuery(this).text());
+            })
+            .blur(function() {
+                // ...if content is different...
+                if (jQuery(this).data("initial") !== jQuery(this).text()) {
+                    jQuery(this).closest("tr").find("td:last-child").text("TBC");
+                }
+            });
+        jQuery("#addRow").click(function(){
+            var clone = jQuery("#gradeTable").find("tr.hide").clone(true).removeClass("hide");
+            jQuery("#gradeTable").append(clone);
+        });
+        jQuery.fn.shift = [].shift;
+        jQuery("#saveChanges").click(function(){
+            var rows = jQuery("#gradeTable").find("tr:not(:hidden)");
+            var headers = [];
+            var data = [];
+
+            // Get the headers (add special header logic here)
+            jQuery(rows.shift()).find("th:not(:empty)").each(function () {
+                headers.push(jQuery(this).text().toLowerCase());
+            });
+
+            // Turn all existing rows into a loopable array
+            rows.each(function () {
+                var td = jQuery(this).find("td");
+                var h = [];
+    
+                // Use the headers from earlier to name our hash keys
+                headers.forEach(function (header, i) {
+                    h.push(td.eq(i).text());   
+                });
+    
+                data.push(h);
+            });
+
+            jQuery.post(ssquizExtension.ajaxurl, {
+                action: "ajaxProcessGradeTable",
+                userId: jQuery("#saveChanges").data("user-id"),
+                tableData: JSON.stringify(data)
+            }).done(function(data){
+                alert("Successfully Saved Changes. Refresh page to see changes.");
+            }).fail(function(){
+                alert("Could not save changes. Please contact the administrator.");
+            });
+
+        });
+    </script>';
+}
+
+function ajaxProcessGradeTable(){
     global $wpdb;
-    $user_id = get_current_user_id();
+    $user_id = $_REQUEST['userId'];
+    $tData = json_decode( stripslashes( $_REQUEST['tableData'] ) );
+    foreach($tData as $row){
+        if($row[2] != 'TBC')
+            continue;
+        $quiz_id = $wpdb->get_var('SELECT id FROM '.$wpdb->base_prefix.'ssquiz_quizzes WHERE name="'.$row[0].'"');
+        if(null == $quiz_id)
+            continue;
+        
+        $res = intval($wpdb->get_var('SELECT count(*) FROM '.$wpdb->base_prefix.'self_ssquiz_response_history where user_id='.$user_id.' and quiz_id='.$quiz_id));
+        $total_questions =  intval($wpdb->get_var('SELECT count(*) FROM '.$wpdb->base_prefix.'ssquiz_questions where quiz_id='.$quiz_id)); 
+        $percent = floatval($row[1]);
+        $correct = round(($percent * $total_questions)/100);
+        if(null == $res || $res <=0){
+            // new entry
+            $data = array();
+            $data['user_id'] = $user_id;
+            $data['quiz_id'] = $quiz_id;
+            $data['question_offset'] = $total_questions + 1;
+            $data['questions_right'] = $correct;
+            $data['page_offset'] = $total_questions / 10;
+            $data['attempts'] = 1;
+            $format = array('%d','%d','%d', '%d', '%d', '%d');
+            $wpdb->insert($wpdb->base_prefix.'self_ssquiz_response_history', $data, $format);
+            $data = array();
+            $data['user_id'] = $user_id;
+            $data['quiz_id'] = $quiz_id;
+            $data['total'] = $total_questions;
+            $data['answered'] = $total_questions;
+            $data['correct'] = $correct;
+            $format = array('%d','%d','%d', '%d', '%d');
+            $wpdb->insert($wpdb->base_prefix.'ssquiz_history', $data, $format);
+        }else{
+            // update entries
+            $data = array();
+            $data['correct'] = $correct;
+            $where = array();
+            $where['user_id'] = $user_id;
+            $where['quiz_id'] = $quiz_id;
+            $data_format = array('%d');
+            $where_format = array('%d','%d');
+            $wpdb->update($wpdb->base_prefix.'ssquiz_history', $data, $where, $data_format, $where_format);
+            $data = array();
+            $data['questions_right'] = $correct;
+            $wpdb->update($wpdb->base_prefix.'self_ssquiz_response_history', $data, $where, $data_format, $where_format);
+        }
+    }
+}
+add_action('wp_ajax_ajaxProcessGradeTable', 'ajaxProcessGradeTable');
+
+function printableGradeTable($user_id, $editable = false){
+    global $wpdb;
     $pass_percent = 85;
     $gradea_cutoff = 90;
-    $result = '<table id="gradeTable">';
+    $result .= '<table id="gradeTable">';
     $result .= '<tr><th>Course Name</th><th>Marks Obtained</th><th>Letter Grade</th></tr>';
     $quizzes = $wpdb->get_results("select name,meta,total,correct from {$wpdb->base_prefix}ssquiz_quizzes as q join (SELECT h1.quiz_id,total,correct,h2.ts FROM {$wpdb->base_prefix}ssquiz_history as h1 inner JOIN (select quiz_id,user_id,max(timestamp) as ts from {$wpdb->base_prefix}ssquiz_history where user_id=".$user_id." group by quiz_id)as h2 ON h2.quiz_id = h1.quiz_id and h1.user_id = h2.user_id and h1.timestamp=h2.ts) as h on q.id=h.quiz_id order by h.ts desc");
     $i = 0;
@@ -194,15 +324,21 @@ function displayGradeTable($atts){
         }
         if($marks >= $gradea_cutoff)
             $grade = 'A';            
-        $result .= "<td>".$quiz->name."</td><td>".$marks."</td><td>".$grade."</td>";
+        $result .= "<td>".$quiz->name."</td><td contenteditable='".strBool($editable)."'>".$marks." %</td><td>".$grade."</td>";
         $result .= "</tr>";
         $i++;
+    }
+    if($editable){
+        $result .= "<tr class='hide'><td contenteditable='".strBool($editable)."'>Undefined</td><td contenteditable='".strBool($editable)."'>Not Set</td><td>TBC</td></tr>";
     }
     $result .= '</table>';
     $result .= '<p class="passedCredits">Total passed credits: '.$tpc.'</p>';
     return $result;
 }
-add_shortcode('ssquizExtensionGradeTable','displayGradeTable');
+
+function strBool($var){
+    return ($var) ? 'true' : 'false';
+}
 
 function ajaxOptCurriculum(){
     global $wpdb;

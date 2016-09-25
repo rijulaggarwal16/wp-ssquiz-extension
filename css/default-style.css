@@ -51,3 +51,6 @@ table#gradeTable{
 #gradeTable .odd{
     background-color: #eee;
 }
+.hide{
+    display: none;
+}
