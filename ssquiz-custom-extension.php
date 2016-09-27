@@ -174,7 +174,8 @@ function displayGradeTable($atts){
 add_shortcode('ssquizExtensionGradeTable','displayGradeTable');
 
 function displayEditableGradeTable($atts){
-    $result = '<form action="'. htmlspecialchars($_SERVER["PHP_SELF"]) .'" method="POST"><label>Username</label><input name="username" id="username" type="text" /><input type="submit" name="submit" /></form>';
+    $link = get_permalink();
+    $result = '<form action="'. $link .'" method="POST"><label>Username</label><input name="username" id="username" type="text" /><input type="submit" name="submit" /></form>';
     if(!$_REQUEST['username']){
         return $result;
     }else{
