@@ -317,7 +317,10 @@ function printableGradeTable($user_id, $editable = false){
             $result .= "<tr class='odd'>";
 
         $grade = 'F';
-        $marks = $quiz->correct/$quiz->total*100;
+        if($quiz->total == 0)
+            $marks = 0;
+        else
+            $marks = $quiz->correct/$quiz->total*100;
         $marks = round($marks,1);
         if($marks >= $pass_percent){
             $tpc += intval($quiz_meta->quiz_credits);
